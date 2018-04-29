@@ -11,6 +11,8 @@ import argparse
 import code
 import prettytable
 import logging
+import sys
+sys.path.append('/home/sai/NLP/Project/DrQA')
 
 from termcolor import colored
 from drqa import pipeline

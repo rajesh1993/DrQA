@@ -12,6 +12,14 @@ import argparse
 import logging
 import prettytable
 import time
+import sys
+import os
+up = os.path.dirname
+base = os.path.basename
+project_path = os.getcwd()
+while base(project_path) != 'DrQA':
+    project_path = up(project_path)
+sys.path.append(project_path)
 
 from drqa.reader import Predictor
 
