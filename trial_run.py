@@ -36,7 +36,7 @@ logger.addHandler(console)
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='/home/sai/NLP/Project/DrQA/data/MovieQA_benchmark/data/qa.json',
                     help='SQuAD-like dataset to evaluate on')
-parser.add_argument('--model', type=str, default='/home/sai/NLP/Project/DrQA/data/reader/multitask.mdl',
+parser.add_argument('--model', type=str, default='/home/sai/NLP/Project/DrQA/data/reader/single.mdl',
                     help='Path to model to use')
 parser.add_argument('--embedding-file', type=str, default=None,
                     help=('Expand dictionary to use all pretrained '

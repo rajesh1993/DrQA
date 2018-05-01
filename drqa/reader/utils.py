@@ -73,6 +73,27 @@ def load_answers(filename):
                 ans[qa['id']] = list(map(lambda x: x['text'], qa['answers']))
     return ans
 
+def load_qa_options(qa_filename, plots_folder):
+    """Load examples from MovieQA dataset. Store as qid -> text."""
+    # Load JSON file
+    with open(qa_filename, 'r') as f_qa:
+        qa_examples = json.load(f_qa)
+
+    questions = []
+    texts = {}
+    paragraphs = {}
+    # Paragraphs are not just paragraphs but around 4092 B of text. Storing this for
+    # an entire batch repeatedly is wasting space, especially when multiple qns share
+    # paragraphs. Instead, we will try storing the paragraph in a separate dictionary
+    # and linking each question to a key for the paragraph dictionary.
+    for q in qa_examples:
+        questions.append({'id': q['qid'], 'question': q['question']})
+        texts[q['qid']] = q['imdb_key']
+        if q['imdb_key'] not in paragraphs:
+            with open('{}/{}.wiki'.format(plots_folder, q['imdb_key'], 'r')) as f:
+                paragraphs[q['imdb_key']] = f.read(16384)
+
+    return (questions, texts, paragraphs)
 
 # ------------------------------------------------------------------------------
 # Dictionary building

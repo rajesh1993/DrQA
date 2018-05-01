@@ -13,13 +13,13 @@ t1 = time.time()
 print('Loaded word vectors in {}s'.format(t1-t0))
 
 candidates = [
-            "Because he is warned it's not safe.",
-            "Because he wants to get some fresh air.",
-            "Because he is called away.",
-            "Because he has to get some stuff.",
-            "Because he senses danger."
+            "A gun and a pack of bullets.",
+            "A few bullets.",
+            "Food and water supplies.",
+            "A knife and a sword.",
+            "A sheathed blade."
         ]
-answer = 'Sensing danger'
+answer = 'taking with him a sheathed blade.'
 
 # answer_embedding = nlp(answer)
 # candidate_embeddings = [nlp(c) for c in candidates]
