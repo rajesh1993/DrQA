@@ -15,6 +15,13 @@ import time
 from multiprocessing import Pool
 from multiprocessing.util import Finalize
 from functools import partial
+
+up = os.path.dirname
+base = os.path.basename
+project_path = os.getcwd()
+while base(project_path) != 'DrQA':
+    project_path = up(project_path)
+sys.path.append(project_path)
 from drqa import tokenizers
 
 # ------------------------------------------------------------------------------
