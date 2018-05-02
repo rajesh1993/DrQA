@@ -109,6 +109,7 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
     qids = []
     example_candidates = []
     example_correct_index = []
+    context_strings = []
     for i, qid, question, imdb_key, candidates, plot_alignment, correct_index in \
             qn_set_df.loc[q:q+args.batch_size, ['qid', 'question', 'imdb_key',
                                                 'answers', 'plot_alignment', 'correct_index']].itertuples():
@@ -134,6 +135,7 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
             plot_file.close()
             qids.append(qid)
             examples.append((context, question))
+            context_strings.append(context)
             example_candidates.append(candidates)
             example_correct_index.append(correct_index)
             # examples.append((context, question, candidates))
@@ -155,11 +157,14 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
                 ans_embs = nlp(answer)
                 cand_embs = [nlp(c) for c in lem_candidates]
                 best_candidate = np.argmax([ans_embs.similarity(c) for c in cand_embs])
-                results[qids[i + j]] = {"span": answer,
-                                        "candidate": candidates[int(best_candidate)],
-                                        "index": float(best_candidate),
-                                        "correct_index": float(example_correct_index[i + j]),
-                                        "correct_answer": candidates[int(example_correct_index[i + j])]}
+                if float(best_candidate) == float(example_correct_index[i + j]):
+                    results[qids[i + j]] = {"span": answer,
+                                            "candidate": candidates[int(best_candidate)],
+                                            "index": float(best_candidate),
+                                            "correct_index": float(example_correct_index[i + j]),
+                                            "correct_answer": candidates[int(example_correct_index[i + j])],
+                                            "search_line": context_strings[i + j]
+                                            }
                 # print('Answer: {}'.format(answer))
                 # print('Candidate: {}'.format(results[qids[i + j]]))
 
@@ -181,7 +186,8 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
                                                        float(ans_embs[k].similarity(cand_embs[int(best_candidate[k])])),
                                                        int(best_candidate[k])) for k in range(len(best_candidate))],
                                         "correct_index": float(example_correct_index[i + j]),
-                                        "correct_answer": candidates[int(example_correct_index[i + j])]
+                                        "correct_answer": candidates[int(example_correct_index[i + j])],
+                                        "search_string": context_strings[i + j]
                                         }
                 # print('Answers: {}'.format(ans_preds))
                 # print('Candidates: {}\n'.format(results[qids[i + j]]))
