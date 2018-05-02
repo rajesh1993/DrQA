@@ -37,16 +37,20 @@ def load_data(path):
     mv_path = os.path.join(path, 'movies.json')
     mv_file = open(mv_path, 'r')
     mv_data = json.load(mv_file)
-    mv_dict = {}
-    for movie in mv_data:
-        plot = os.path.join('./data/datasets/MovieQA_benchmark', movie['text']['plot'])
-        story = open(plot, 'r')
-        mv_dict[movie['imdb_key']] = {'plot': story.read()}
+    mv_file.close()
+    # mv_dict = {}
+    # for movie in mv_data:
+        # plot = os.path.join('./data/datasets/MovieQA_benchmark', movie['text']['plot'])
+        # story = open(plot, 'r')
+        # mv_dict[movie['imdb_key']] = {'plot': story.read()}
+        # story.close()
+    mv_list = [movie['imdb_key'] for movie in mv_data]
 
     # Load the question data from the dataset
     qa_path = os.path.join(path, 'qa.json')
     qa_file = open(qa_path, 'r')
     qa_data = json.load(qa_file)
+    qa_file.close()
     qa_dict = {}
     for qa in qa_data:
         if qa['imdb_key'] in qa_dict:
@@ -58,11 +62,13 @@ def load_data(path):
     splits_path = os.path.join(path, 'splits.json')
     splits_file = open(splits_path, 'r')
     splits_data = json.load(splits_file)
+    splits_file.close()
 
     # Load the span predictions
     span_path = os.path.join(path, 'span.preds')
     span_file = open(span_path, 'r')
     span_data = json.load(span_file)
+    span_file.close()
 
     # Question to movie dict (reverse)
     reverse_qa_dict = {}
@@ -75,30 +81,35 @@ def load_data(path):
     # Find location of span in context
     span_dict = {}
     for q in span_data:
-        context = mv_dict[reverse_qa_dict[q]['imdb_key']]['plot']
-        subtext = span_data[q]['span']
-        sub_idx_start = context.find(subtext)
-        sub_idx_end = sub_idx_start + len(subtext)
+        # context = mv_dict[reverse_qa_dict[q]['imdb_key']]['plot']
+        context = span_data[q]['paragraph']
+        subtext = span_data[q]['search_line']
+        span = span_data[q]['span']
+        sentence_start = context.find(subtext)
+        sub_idx_start = context.find(span, sentence_start)
+        sub_idx_end = sub_idx_start + len(span)
         span_dict[q] = (sub_idx_start, sub_idx_end)
 
 
     # Load the output in the below format
     output = {'qids': [], 'questions': [], 'answers': [],
               'contexts': [], 'qid2cid': [], 'correct_index': [], 'span_index':[]}
-    for movie in mv_dict:
+    for movie in mv_list:
         if movie in splits_data['train']:
-            output['contexts'].append(mv_dict[movie]['plot'])
+            # output['contexts'].append(mv_dict[movie]['plot'])
             for qa in qa_dict[movie]:
-                output['questions'].append(qa['question'])
-                output['qids'].append(qa['qid'])
-                output['qid2cid'].append(len(output['contexts']) - 1)
-                output['correct_index'].append(qa['correct_index'])
-                try:
+                if qa['qid'] in span_data:
+                    output['contexts'].append(span_data[qa['qid']]['paragraph'])
+                    output['questions'].append(qa['question'])
+                    output['qids'].append(qa['qid'])
+                    output['qid2cid'].append(len(output['contexts']) - 1)
+                    output['correct_index'].append(qa['correct_index'])
+                    # try:
                     output['span_index'].append(span_dict[qa['qid']])
-                except KeyError:
-                    output['span_index'].append((10,15))
-                if 'answers' in qa:
-                    output['answers'].append(qa['answers'])
+                    # except KeyError:
+                    #     output['span_index'].append((10,15))
+                    if 'answers' in qa:
+                        output['answers'].append(qa['answers'])
     return output
 
 # def find_answer(offsets, begin_offset, end_offset):

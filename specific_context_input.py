@@ -110,6 +110,7 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
     example_candidates = []
     example_correct_index = []
     context_strings = []
+    example_paragraphs = []
     for i, qid, question, imdb_key, candidates, plot_alignment, correct_index in \
             qn_set_df.loc[q:q+args.batch_size, ['qid', 'question', 'imdb_key',
                                                 'answers', 'plot_alignment', 'correct_index']].itertuples():
@@ -121,17 +122,35 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
             plot_location = plot_location.replace('plot', 'split_plot').replace('.wiki', '.split.wiki')
             plot_file = open(os.path.join(os.getcwd(), 'data/MovieQA_benchmark/'+plot_location), 'r')
             # context = plot_file.read(16384)  # Hard-coded. Don't expect plots larger than 16 KB. Increase if needed.
-            k = 0
+            size_text = 0
             context_l = []
-            while k <= max(plot_alignment):
-                context_l += [plot_file.readline().strip('\n')]
-                k += 1
-            roi_lines = plot_alignment
+            l = plot_file.readline()
+            while l != '':
+                context_l.append(l.strip('\n'))
+                l = plot_file.readline()
+                size_text += 1
+            roi_lines = plot_alignment[:]
             # if min(plot_alignment) >= 2 and context_l[min(plot_alignment)-1] == '':
             #     roi_lines = [min(plot_alignment)-2] + plot_alignment
             # elif min(plot_alignment) >= 1 and context_l[min(plot_alignment)-1] != '':
             #     roi_lines = [min(plot_alignment)-1] + plot_alignment
-            context = ' '.join([context_l[k] for k in roi_lines])
+            num_pre = 2
+            for k in range(min(plot_alignment)-1, max(-1, min(plot_alignment)-5), -1):
+                if context_l[k] != '':
+                    roi_lines = [k] + roi_lines
+                    num_pre -= 1
+                    if num_pre == 0:
+                        break
+            num_post = 2
+            for k in range(max(plot_alignment)+1, min(size_text, max(plot_alignment)+5)):
+                if context_l[k] != '':
+                    roi_lines.append(k)
+                    num_post -= 1
+                    if num_post == 0:
+                        break
+
+            context = ' '.join([context_l[k] for k in plot_alignment])
+            example_paragraphs.append(' '.join([context_l[k] for k in roi_lines]))
             plot_file.close()
             qids.append(qid)
             examples.append((context, question))
@@ -163,7 +182,8 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
                                             "index": float(best_candidate),
                                             "correct_index": float(example_correct_index[i + j]),
                                             "correct_answer": candidates[int(example_correct_index[i + j])],
-                                            "search_line": context_strings[i + j]
+                                            "search_line": context_strings[i + j],
+                                            "paragraph": example_paragraphs[i + j]
                                             }
                 # print('Answer: {}'.format(answer))
                 # print('Candidate: {}'.format(results[qids[i + j]]))
@@ -187,7 +207,8 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
                                                        int(best_candidate[k])) for k in range(len(best_candidate))],
                                         "correct_index": float(example_correct_index[i + j]),
                                         "correct_answer": candidates[int(example_correct_index[i + j])],
-                                        "search_string": context_strings[i + j]
+                                        "search_line": context_strings[i + j],
+                                        "paragraph": example_paragraphs[i + j]
                                         }
                 # print('Answers: {}'.format(ans_preds))
                 # print('Candidates: {}\n'.format(results[qids[i + j]]))
