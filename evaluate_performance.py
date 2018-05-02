@@ -4,7 +4,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='data/MovieQA_benchmark/data/qa.json',
                     help='MovieQA-like dataset to evaluate on')
-parser.add_argument('--predictions', type=str, default='qa-multitask.preds',
+parser.add_argument('--predictions', type=str, default='qa-multitask-specific.preds',
                     help='Predictions file in json format')
 parser.add_argument('--only-val', action='store_true',
                     help='Do not include validation qns in evaluation')
