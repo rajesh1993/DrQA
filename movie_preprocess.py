@@ -144,50 +144,54 @@ def process_dataset(data, tokenizer, workers=None):
     #Add clemma and calculate the number of candidates for each question and also multiply the question by 5
 
     for idx in range(len(data['qids'])):
+    # for cand_idx in range(5):
+        question = q_tokens[idx]['words']
+        qlemma = q_tokens[idx]['lemma']
+        document = c_tokens[data['qid2cid'][idx]]['words']
+        offsets = c_tokens[data['qid2cid'][idx]]['offsets']
+        lemma = c_tokens[data['qid2cid'][idx]]['lemma']
+        pos = c_tokens[data['qid2cid'][idx]]['pos']
+        ner = c_tokens[data['qid2cid'][idx]]['ner']
+        correct_index = data['correct_index'][idx]
+        clabel = []
+        clemma = []
         for cand_idx in range(5):
-            question = q_tokens[idx]['words']
-            qlemma = q_tokens[idx]['lemma']
-            document = c_tokens[data['qid2cid'][idx]]['words']
-            offsets = c_tokens[data['qid2cid'][idx]]['offsets']
-            lemma = c_tokens[data['qid2cid'][idx]]['lemma']
-            pos = c_tokens[data['qid2cid'][idx]]['pos']
-            ner = c_tokens[data['qid2cid'][idx]]['ner']
-            correct_index = data['correct_index'][idx]
+            clemma.append(ans_tokens[idx * 5 + cand_idx]['lemma'])
             if correct_index == cand_idx:
-                clabel = 1
+                clabel.append(1)
             else:
-                clabel = 0
-            answer = []
-            answer.append(data['span_index'][idx])
-            ans_candidate = ans_tokens[idx * 5 + cand_idx]
-            clemma = ans_candidate['lemma']
+                clabel.append(0)
+        answer = []
+        answer.append(data['span_index'][idx])
+        ans_candidate = ans_tokens[(idx * 5) : (idx * 5 + 5)]
+        clemma = [cd['lemma'] for cd in ans_candidate]
 
-            # Include answer candidates, correct answer number and index of the span, clabel
+        # Include answer candidates, correct answer number and index of the span, clabel
 
-            # ans_tokens = []
-            # print(offsets)
-            # if len(data['answers']) > 0:
-            #     for ans in data['answers'][idx]:
-                    # found = find_answer(offsets,
-                    #                     ans['answer_start'],
-                    #                     ans['answer_start'] + len(ans['text']))
-                    # if found:
-                    #     ans_tokens.append(found)
-            yield {
-                'id': data['qids'][idx],
-                'question': question,
-                'document': document,
-                'offsets': offsets,
-                'answers': answer,
-                'candidate': ans_candidate,
-                'correct_index': correct_index,
-                'qlemma': qlemma,
-                'lemma': lemma,
-                'clemma': clemma,
-                'clabel': clabel,
-                'pos': pos,
-                'ner': ner,
-            }
+        # ans_tokens = []
+        # print(offsets)
+        # if len(data['answers']) > 0:
+        #     for ans in data['answers'][idx]:
+                # found = find_answer(offsets,
+                #                     ans['answer_start'],
+                #                     ans['answer_start'] + len(ans['text']))
+                # if found:
+                #     ans_tokens.append(found)
+        yield {
+            'id': data['qids'][idx],
+            'question': question,
+            'document': document,
+            'offsets': offsets,
+            'answers': answer,
+            'candidate': ans_candidate,
+            'correct_index': correct_index,
+            'qlemma': qlemma,
+            'lemma': lemma,
+            'clemma': clemma,
+            'clabel': clabel,
+            'pos': pos,
+            'ner': ner,
+        }
 
 
 if __name__ == '__main__':
