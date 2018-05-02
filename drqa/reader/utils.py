@@ -169,6 +169,12 @@ def build_feature_dict(args, examples):
         if args.use_lemma:
             _insert('in_question_lemma')
 
+    if args.use_in_candidate:
+        _insert('in_candidate')
+        _insert('in_candidate_uncased')
+        if args.use_lemma:
+            _insert('in_candidate_lemma')
+
     # Part of speech tag features
     if args.use_pos:
         for ex in examples:

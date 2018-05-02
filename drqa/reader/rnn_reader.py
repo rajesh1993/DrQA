@@ -33,7 +33,12 @@ class RnnDocReader(nn.Module):
         if args.use_qemb:
             self.qemb_match = layers.SeqAttnMatch(args.embedding_dim)
 
+        # Projection for attention weighted candidate
+        if args.use_cemb:
+            self.cemb_match = layers.SeqAttnMatch(args.embedding_dim)
+
         # Input size to RNN: word emb + question emb + manual features
+        # # # We want to add candidate emb to RNN.
         doc_input_size = args.embedding_dim + args.num_features
         if args.use_qemb:
             doc_input_size += args.embedding_dim
@@ -62,18 +67,38 @@ class RnnDocReader(nn.Module):
             padding=args.rnn_padding,
         )
 
+        # RNN candidate encoder
+        self.candidate_rnn = layers.StackedBRNN(
+            input_size=args.embedding_dim,
+            hidden_size=args.hidden_size,
+            num_layers=args.candidate_layers,
+            dropout_rate=args.dropout_rnn,
+            dropout_output=args.dropout_rnn_output,
+            concat_layers=args.concat_rnn_layers,
+            rnn_type=self.RNN_TYPES[args.rnn_type],
+            padding=args.rnn_padding,
+        )
+
         # Output sizes of rnn encoders
         doc_hidden_size = 2 * args.hidden_size
         question_hidden_size = 2 * args.hidden_size
+        candidate_hidden_size = 2 * args.hidden_size
         if args.concat_rnn_layers:
             doc_hidden_size *= args.doc_layers
             question_hidden_size *= args.question_layers
+            candidate_hidden_size *= args.candidate_layers
 
         # Question merging
         if args.question_merge not in ['avg', 'self_attn']:
             raise NotImplementedError('merge_mode = %s' % args.merge_mode)
         if args.question_merge == 'self_attn':
             self.self_attn = layers.LinearSeqAttn(question_hidden_size)
+
+        # Candidate merging
+        if args.candidate_merge not in ['avg', 'self_attn']:
+            raise NotImplementedError('candidate merge_mode = %s' % args.merge_mode)
+        if args.candidate_merge == 'self_attn':
+            self.cand_self_attn = layers.LinearSeqAttn(candidate_hidden_size)
 
         # Bilinear attention for span start/end
         self.start_attn = layers.BilinearSeqAttn(
@@ -87,23 +112,40 @@ class RnnDocReader(nn.Module):
             normalize=normalize,
         )
 
-    def forward(self, x1, x1_f, x1_mask, x2, x2_mask):
+        # Bilinear attention for span start/end based on candidate instead of question
+        self.cand_start_attn = layers.BilinearSeqAttn(
+            doc_hidden_size,
+            candidate_hidden_size,
+            normalize=normalize,
+        )
+        self.cand_end_attn = layers.BilinearSeqAttn(
+            doc_hidden_size,
+            candidate_hidden_size,
+            normalize=normalize,
+        )
+
+    def forward(self, x1, x1_f, x1_mask, x2, x2_mask, x3, x3_mask):
         """Inputs:
         x1 = document word indices             [batch * len_d]
         x1_f = document word features indices  [batch * len_d * nfeat]
         x1_mask = document padding mask        [batch * len_d]
         x2 = question word indices             [batch * len_q]
         x2_mask = question padding mask        [batch * len_q]
+        x3 = candidate word indices            [batch * len_c]
+        x3_mask = candidate padding mask       [batch * len_c]
         """
         # Embed both document and question
         x1_emb = self.embedding(x1)
         x2_emb = self.embedding(x2)
+        x3_emb = self.embedding(x3)
 
         # Dropout on embeddings
         if self.args.dropout_emb > 0:
             x1_emb = nn.functional.dropout(x1_emb, p=self.args.dropout_emb,
                                            training=self.training)
             x2_emb = nn.functional.dropout(x2_emb, p=self.args.dropout_emb,
+                                           training=self.training)
+            x3_emb = nn.functional.dropout(x3_emb, p=self.args.dropout_emb,
                                            training=self.training)
 
         # Form document encoding inputs
@@ -113,6 +155,10 @@ class RnnDocReader(nn.Module):
         if self.args.use_qemb:
             x2_weighted_emb = self.qemb_match(x1_emb, x2_emb, x2_mask)
             drnn_input.append(x2_weighted_emb)
+
+        if self.args.use_cemb:
+            x3_weighted_emb = self.cemb_match(x1_emb, x3_emb, x3_mask)
+            drnn_input.append(x3_weighted_emb)
 
         # Add manual features
         if self.args.num_features > 0:
@@ -129,7 +175,25 @@ class RnnDocReader(nn.Module):
             q_merge_weights = self.self_attn(question_hiddens, x2_mask)
         question_hidden = layers.weighted_avg(question_hiddens, q_merge_weights)
 
+        # Encode candidate with RNN + merge hiddens
+        candidate_hiddens = self.candidate_rnn(x3_emb, x3_mask)
+        if self.args.candidate_merge == 'avg':
+            c_merge_weights = layers.uniform_weights(candidate_hiddens, x3_mask)
+        elif self.args.candidate_merge == 'self_attn':
+            c_merge_weights = self.self_attn(candidate_hiddens, x3_mask)
+        candidate_hidden = layers.weighted_avg(candidate_hiddens, c_merge_weights)
+
         # Predict start and end positions
-        start_scores = self.start_attn(doc_hiddens, question_hidden, x1_mask)
-        end_scores = self.end_attn(doc_hiddens, question_hidden, x1_mask)
+        start_scores_qstn = self.start_attn(doc_hiddens, question_hidden, x1_mask)
+        end_scores_qstn = self.end_attn(doc_hiddens, question_hidden, x1_mask)
+
+        start_scores_cand = self.cand_start_attn(doc_hiddens, candidate_hidden, x1_mask)
+        end_scores_cand = self.cand_end_attn(doc_hiddens, candidate_hidden, x1_mask)
+
+        start_scores = (start_scores_qstn * self.args.start_score_qn_weight) + \
+                       (start_scores_cand * (1.0 - self.args.start_score_qn_weight))
+
+        end_scores = (end_scores_qstn * self.args.end_score_qn_weight) + \
+                     (end_scores_cand * (1.0 - self.args.end_score_qn_weight))
+
         return start_scores, end_scores

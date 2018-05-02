@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 # Index of arguments concerning the core model architecture
 MODEL_ARCHITECTURE = {
     'model_type', 'embedding_dim', 'hidden_size', 'doc_layers',
-    'question_layers', 'rnn_type', 'concat_rnn_layers', 'question_merge',
-    'use_qemb', 'use_in_question', 'use_pos', 'use_ner', 'use_lemma', 'use_tf'
+    'question_layers', 'candidate_layers', 'rnn_type', 'concat_rnn_layers', 'question_merge', 'candidate_merge',
+    'use_qemb', 'use_cemb', 'use_in_question', 'use_in_candidate', 'use_pos', 'use_ner', 'use_lemma', 'use_tf',
+    'start_score_qn_weight', 'end_score_qn_weight'
 }
 
 # Index of arguments concerning the model optimizer/training
@@ -45,6 +46,8 @@ def add_model_args(parser):
                        help='Number of encoding layers for document')
     model.add_argument('--question-layers', type=int, default=3,
                        help='Number of encoding layers for question')
+    model.add_argument('--candidate-layers', type=int, default=3,
+                       help='Number of encoding layers for candidate')
     model.add_argument('--rnn-type', type=str, default='lstm',
                        help='RNN type: LSTM, GRU, or RNN')
 
@@ -54,10 +57,16 @@ def add_model_args(parser):
                         help='Combine hidden states from each encoding layer')
     detail.add_argument('--question-merge', type=str, default='self_attn',
                         help='The way of computing the question representation')
+    detail.add_argument('--candidate-merge', type=str, default='self_attn',
+                        help='The way of computing the candidate representation')
     detail.add_argument('--use-qemb', type='bool', default=True,
                         help='Whether to use weighted question embeddings')
+    detail.add_argument('--use-cemb', type='bool', default=True,
+                        help='Whether to use weighted candidate embeddings')
     detail.add_argument('--use-in-question', type='bool', default=True,
                         help='Whether to use in_question_* features')
+    detail.add_argument('--use-in-candidate', type='bool', default=True,
+                        help='Whether to use in_candidate_* features')
     detail.add_argument('--use-pos', type='bool', default=True,
                         help='Whether to use pos features')
     detail.add_argument('--use-ner', type='bool', default=True,
@@ -66,6 +75,15 @@ def add_model_args(parser):
                         help='Whether to use lemma features')
     detail.add_argument('--use-tf', type='bool', default=True,
                         help='Whether to use term frequency features')
+    detail.add_argument('--start-score-qn-weight', type=float, default=0.5,
+                        help='The weight w in range [0.0, 1.0] to give to start_score based on question.\n'+
+                        'The start_score based on candidate is given weight (1.0-w).\n'+
+                        'start_score at any token is weighted average of these two scores.')
+    detail.add_argument('--end-score-qn-weight', type=float, default=0.5,
+                        help='The weight w in range [0.0, 1.0] to give to end_score based on question.\n' +
+                             'The start_score based on candidate is given weight (1.0-w).\n' +
+                             'end_score at any token is weighted average of these two scores.')
+
 
     # Optimization details
     optim = parser.add_argument_group('DrQA Reader Optimization')
