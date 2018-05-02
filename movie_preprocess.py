@@ -59,9 +59,32 @@ def load_data(path):
     splits_file = open(splits_path, 'r')
     splits_data = json.load(splits_file)
 
+    # Load the span predictions
+    span_path = os.path.join(path, 'span.preds')
+    span_file = open(span_path, 'r')
+    span_data = json.load(span_file)
+
+    # Question to movie dict (reverse)
+    reverse_qa_dict = {}
+    for qa in qa_data:
+        #if qa['qid'] in reverse_qa_dict:
+        #    reverse_qa_dict[qa['qid']].append(qa)
+        #else:
+        reverse_qa_dict[qa['qid']] = qa
+
+    # Find location of span in context
+    span_dict = {}
+    for q in span_data:
+        context = mv_dict[reverse_qa_dict[q]['imdb_key']]['plot']
+        subtext = span_data[q]['span']
+        sub_idx_start = context.find(subtext)
+        sub_idx_end = sub_idx_start + len(subtext)
+        span_dict[q] = (sub_idx_start, sub_idx_end)
+
+
     # Load the output in the below format
     output = {'qids': [], 'questions': [], 'answers': [],
-              'contexts': [], 'qid2cid': []}
+              'contexts': [], 'qid2cid': [], 'correct_index': [], 'span_index':[]}
     for movie in mv_dict:
         if movie in splits_data['train']:
             output['contexts'].append(mv_dict[movie]['plot'])
@@ -69,6 +92,11 @@ def load_data(path):
                 output['questions'].append(qa['question'])
                 output['qids'].append(qa['qid'])
                 output['qid2cid'].append(len(output['contexts']) - 1)
+                output['correct_index'].append(qa['correct_index'])
+                try:
+                    output['span_index'].append(span_dict[qa['qid']])
+                except KeyError:
+                    output['span_index'].append((10,15))
                 if 'answers' in qa:
                     output['answers'].append(qa['answers'])
     return output
@@ -97,13 +125,16 @@ def process_dataset(data, tokenizer, workers=None):
     c_tokens = workers.map(tokenize, data['contexts'])
     workers.close()
     workers.join()
-    ans_tokens = []
-    for idx in range(len(data['answers'])):
-        workers = make_pool(initargs=(tokenizer_class, {'annotators': {'lemma'}}))
-        curr_ans = workers.map(tokenize, data['answers'][idx])
-        workers.close()
-        workers.join()
-        ans_tokens.append(curr_ans)
+
+    #ans_candidates = []
+    all_candidates = [ans for item in data['answers'] for ans in item]
+    workers = make_pool(initargs=(tokenizer_class, {'annotators': {'lemma'}}))
+    ans_candidates = workers.map(tokenize, all_candidates)
+    #for idx in range(len(data['answers'])):
+    #    curr_ans = workers.map(tokenize, data['answers'][idx])
+    #    ans_candidates.append(curr_ans)
+    workers.close()
+    workers.join()
 
     for idx in range(len(data['qids'])):
         question = q_tokens[idx]['words']
@@ -113,6 +144,12 @@ def process_dataset(data, tokenizer, workers=None):
         lemma = c_tokens[data['qid2cid'][idx]]['lemma']
         pos = c_tokens[data['qid2cid'][idx]]['pos']
         ner = c_tokens[data['qid2cid'][idx]]['ner']
+        correct_index = data['correct_index'][idx]
+        ans_tokens = []
+        ans_tokens.append(data['span_index'][idx])
+
+        # Include answer candidates, correct answer number and index of the span
+
         # ans_tokens = []
         # print(offsets)
         # if len(data['answers']) > 0:
@@ -128,6 +165,8 @@ def process_dataset(data, tokenizer, workers=None):
             'document': document,
             'offsets': offsets,
             'answers': ans_tokens,
+            'candidates': ans_candidates,
+            'correct_index': correct_index,
             'qlemma': qlemma,
             'lemma': lemma,
             'pos': pos,
