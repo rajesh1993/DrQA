@@ -71,25 +71,25 @@ class RnnDocReader(nn.Module):
         )
 
         # RNN candidate encoder
-        # self.candidate_rnn = layers.StackedBRNN(
-        #     input_size=args.embedding_dim,
-        #     hidden_size=args.hidden_size,
-        #     num_layers=args.question_layers,
-        #     dropout_rate=args.dropout_rnn,
-        #     dropout_output=args.dropout_rnn_output,
-        #     concat_layers=args.concat_rnn_layers,
-        #     rnn_type=self.RNN_TYPES[args.rnn_type],
-        #     padding=args.rnn_padding,
-        # )
+        self.candidate_rnn = layers.StackedBRNN(
+            input_size=args.embedding_dim,
+            hidden_size=args.hidden_size,
+            num_layers=args.question_layers,
+            dropout_rate=args.dropout_rnn,
+            dropout_output=args.dropout_rnn_output,
+            concat_layers=args.concat_rnn_layers,
+            rnn_type=self.RNN_TYPES[args.rnn_type],
+            padding=args.rnn_padding,
+        )
 
         # Output sizes of rnn encoders
         doc_hidden_size = 2 * args.hidden_size
         question_hidden_size = 2 * args.hidden_size
-        # candidate_hidden_size = 2 * args.hidden_size
+        candidate_hidden_size = 2 * args.hidden_size
         if args.concat_rnn_layers:
             doc_hidden_size *= args.doc_layers
             question_hidden_size *= args.question_layers
-            # candidate_hidden_size *= args.question_layers
+            candidate_hidden_size *= args.question_layers
 
         # Question merging
         if args.question_merge not in ['avg', 'self_attn']:
@@ -98,10 +98,10 @@ class RnnDocReader(nn.Module):
             self.self_attn = layers.LinearSeqAttn(question_hidden_size)
 
         # Candidate merging
-        # if args.question_merge not in ['avg', 'self_attn']:
-        #     raise NotImplementedError('candidate merge_mode = %s' % args.merge_mode)
-        # if args.question_merge == 'self_attn':
-        #     self.cand_self_attn = layers.LinearSeqAttn(candidate_hidden_size)
+        if args.question_merge not in ['avg', 'self_attn']:
+            raise NotImplementedError('candidate merge_mode = %s' % args.merge_mode)
+        if args.question_merge == 'self_attn':
+            self.cand_self_attn = layers.LinearSeqAttn(candidate_hidden_size)
 
         # Bilinear attention for span start/end
         self.start_attn = layers.BilinearSeqAttn(
@@ -179,12 +179,12 @@ class RnnDocReader(nn.Module):
         question_hidden = layers.weighted_avg(question_hiddens, q_merge_weights)
 
         # Encode candidate with RNN + merge hiddens
-        # candidate_hiddens = self.candidate_rnn(x3_emb, x3_mask)
-        # if self.args.question_merge == 'avg':
-        #     c_merge_weights = layers.uniform_weights(candidate_hiddens, x3_mask)
-        # elif self.args.question_merge == 'self_attn':
-        #     c_merge_weights = self.cand_self_attn(candidate_hiddens, x3_mask)
-        # candidate_hidden = layers.weighted_avg(candidate_hiddens, c_merge_weights)
+        candidate_hiddens = self.candidate_rnn(x3_emb, x3_mask)
+        if self.args.question_merge == 'avg':
+            c_merge_weights = layers.uniform_weights(candidate_hiddens, x3_mask)
+        elif self.args.question_merge == 'self_attn':
+            c_merge_weights = self.cand_self_attn(candidate_hiddens, x3_mask)
+        candidate_hidden = layers.weighted_avg(candidate_hiddens, c_merge_weights)
 
         # Predict start and end positions
         start_scores_qstn = self.start_attn(doc_hiddens, question_hidden, x1_mask)
