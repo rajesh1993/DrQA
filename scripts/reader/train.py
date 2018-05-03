@@ -15,6 +15,12 @@ import sys
 import subprocess
 import logging
 
+up = os.path.dirname
+base = os.path.basename
+project_path = os.getcwd()
+while base(project_path) != 'DrQA':
+    project_path = up(project_path)
+sys.path.append(project_path)
 
 from drqa.reader import utils, vector, config, data
 from drqa.reader import DocReader
@@ -72,7 +78,8 @@ def add_train_args(parser):
     files.add_argument('--data-dir', type=str, default=DATA_DIR,
                        help='Directory of training/validation data')
     files.add_argument('--train-file', type=str,
-                       default='SQuAD-v1.1-train-processed-corenlp.txt',
+                       # default='SQuAD-v1.1-train-processed-corenlp.txt',
+                       default='movieQA-processed-spacy.txt',
                        help='Preprocessed train file')
     files.add_argument('--dev-file', type=str,
                        default='SQuAD-v1.1-dev-processed-corenlp.txt',

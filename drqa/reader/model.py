@@ -201,15 +201,38 @@ class DocReader(object):
         self.network.train()
 
         # Transfer to GPU
+        """
+        ex[:7] = (x1, x1_f, x1_mask, x2, x2_mask, x3, x3_mask)
+        ex[7:11] = (y_s, y_e, ids)
+        """
+        c_num = len(ex[5])
         if self.use_cuda:
+            # inputs = [e if e is None else Variable(e.cuda(async=True)) for e in ex[:5]]
             inputs = [e if e is None else Variable(e.cuda(async=True))
-                      for e in ex[:5]]
-            target_s = Variable(ex[5].cuda(async=True))
-            target_e = Variable(ex[6].cuda(async=True))
+                      for e in ex[:7]]  # Including 2 more for x3 and x3_mask
+            # inputs = []
+            # for k in range(c_num):
+            #     # document -- x1, x1_f, x1_mask --> Five variants of document
+            #     single_input = [e[k] if e[k] is None else Variable(e[k].cuda(async=True)) for e in ex[:3]]
+            #     # question -- x2, x2_mask --> There is only one question.
+            #     single_input += [e if e is None else Variable(e.cuda(async=True)) for e in ex[3:5]]
+            #     # candidate -- x3, x3_mask --> Five different candidates
+            #     single_input += [e[k] if e[k] is None else Variable(e[k].cuda(async=True)) for e in ex[5:7]]
+            #     inputs.append(single_input)
+
+            # target_s = Variable(ex[5].cuda(async=True))
+            # target_e = Variable(ex[6].cuda(async=True))
+            target_s = Variable(ex[7].cuda(async=True))
+            target_e = Variable(ex[8].cuda(async=True))
+            # target_label = Variable(ex[9].cuda(async=True))
         else:
-            inputs = [e if e is None else Variable(e) for e in ex[:5]]
-            target_s = Variable(ex[5])
-            target_e = Variable(ex[6])
+            # inputs = [e if e is None else Variable(e) for e in ex[:5]]
+            inputs = [e if e is None else Variable(e) for e in ex[:7]]  # Including 2 more for x3 and x3_mask
+            # target_s = Variable(ex[5])
+            # target_e = Variable(ex[6])
+            target_s = Variable(ex[7])
+            target_e = Variable(ex[8])
+            # target_label = Variable(ex[9])
 
         # Run forward
         score_s, score_e = self.network(*inputs)
@@ -278,10 +301,10 @@ class DocReader(object):
         if self.use_cuda:
             inputs = [e if e is None else
                       Variable(e.cuda(async=True), volatile=True)
-                      for e in ex[:5]]
+                      for e in ex[:7]]
         else:
             inputs = [e if e is None else Variable(e, volatile=True)
-                      for e in ex[:5]]
+                      for e in ex[:7]]
 
         # Run forward
         score_s, score_e = self.network(*inputs)
@@ -289,18 +312,18 @@ class DocReader(object):
         # Decode predictions
         score_s = score_s.data.cpu()
         score_e = score_e.data.cpu()
-        if candidates:
-            args = (score_s, score_e, candidates, top_n, self.args.max_len)
-            if async_pool:
-                return async_pool.apply_async(self.decode_candidates, args)
-            else:
-                return self.decode_candidates(*args)
+        # if candidates:
+        #     args = (score_s, score_e, candidates, top_n, self.args.max_len)
+        #     if async_pool:
+        #         return async_pool.apply_async(self.decode_candidates, args)
+        #     else:
+        #         return self.decode_candidates(*args)
+        # else:
+        args = (score_s, score_e, top_n, self.args.max_len)
+        if async_pool:
+            return async_pool.apply_async(self.decode, args)
         else:
-            args = (score_s, score_e, top_n, self.args.max_len)
-            if async_pool:
-                return async_pool.apply_async(self.decode, args)
-            else:
-                return self.decode(*args)
+            return self.decode(*args)
 
     @staticmethod
     def decode(score_s, score_e, top_n=1, max_len=None):

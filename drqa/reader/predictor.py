@@ -101,23 +101,29 @@ class Predictor(object):
         if self.workers:
             q_tokens = self.workers.map_async(tokenize, questions)
             d_tokens = self.workers.map_async(tokenize, documents)
+            c_tokens = [self.workers.map_async(tokenize, cand) for cand in candidates]
             q_tokens = list(q_tokens.get())
             d_tokens = list(d_tokens.get())
+            c_tokens = [list(c_tokens[k].get()) for k in range(len(candidates))]
         else:
             q_tokens = list(map(self.tokenizer.tokenize, questions))
             d_tokens = list(map(self.tokenizer.tokenize, documents))
+            c_tokens = [list(map(self.tokenizer.tokenize, cand)) for cand in candidates]
 
-        examples = []
+        examples = [list() for _ in range(len(candidates))]
         for i in range(len(questions)):
-            examples.append({
-                'id': i,
-                'question': q_tokens[i].words(),
-                'qlemma': q_tokens[i].lemmas(),
-                'document': d_tokens[i].words(),
-                'lemma': d_tokens[i].lemmas(),
-                'pos': d_tokens[i].pos(),
-                'ner': d_tokens[i].entities(),
-            })
+            for k in range(len(candidates)):
+                examples[k].append({
+                    'id': i,
+                    'question': q_tokens[i].words(),
+                    'qlemma': q_tokens[i].lemmas(),
+                    'document': d_tokens[i].words(),
+                    'candidate': c_tokens[k][i].words(),
+                    'clemma': c_tokens[k][i].lemmas(),
+                    'lemma': d_tokens[i].lemmas(),
+                    'pos': d_tokens[i].pos(),
+                    'ner': d_tokens[i].entities(),
+                })
 
         # Stick document tokens in candidates for decoding
         if candidates:
@@ -125,17 +131,34 @@ class Predictor(object):
                           for i in range(len(candidates))]
 
         # Build the batch and run it through the model
-        batch_exs = batchify([vectorize(e, self.model) for e in examples])
-        s, e, score = self.model.predict(batch_exs, candidates, top_n)
+        pred_s_e_score = [list() for _ in range(len(candidates))]
+        for k in range(len(candidates)):
+            batch_exs = batchify([vectorize(e, self.model) for e in examples[k]])
+            s, e, score = self.model.predict(batch_exs, candidates, top_n)
+            pred_s_e_score[k] = [s, e, score]
 
         # Retrieve the predicted spans
+        all_results = []
+        for k in range(len(candidates)):
+            s = pred_s_e_score[k][0]
+            e = pred_s_e_score[k][1]
+            score = pred_s_e_score[k][2]
+            results = []
+            for i in range(len(s)):
+                predictions = []
+                for j in range(len(s[i])):
+                    span = d_tokens[i].slice(s[i][j], e[i][j] + 1).untokenize()
+                    predictions.append((span, score[i][j]))
+                results.append(predictions)
+            all_results.append(results)
+
         results = []
-        for i in range(len(s)):
-            predictions = []
-            for j in range(len(s[i])):
-                span = d_tokens[i].slice(s[i][j], e[i][j] + 1).untokenize()
-                predictions.append((span, score[i][j]))
-            results.append(predictions)
+        for i in range(len(all_results[0])):
+            scores_k = [all_results[k][i][0][1] for k in range(len(candidates))]
+            max_score = max(scores_k)
+            best_k = scores_k.index(max_score)
+            results.append(all_results[best_k][i])
+
         return results
 
     def cuda(self):

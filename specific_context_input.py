@@ -102,7 +102,8 @@ f_movies_json.close()
 
 results = {}
 num_batches = 0
-for q in range(0, qn_set_df.shape[0], args.batch_size):
+# for q in range(0, qn_set_df.shape[0], args.batch_size):
+for q in range(0, args.batch_size, args.batch_size):
     num_batches += 1
     print('Batch Number: {}'.format(num_batches))
     examples = []
@@ -156,8 +157,8 @@ for q in range(0, qn_set_df.shape[0], args.batch_size):
             examples.append((context, question))
             context_strings.append(context)
             example_candidates.append(candidates)
-            example_correct_index.append(correct_index)
-            # examples.append((context, question, candidates))
+            # example_correct_index.append(correct_index)
+            examples.append((context, question, candidates))
     # print('Finished creating inputs, Going to start ptrial_run.pyredictions now')
 
     for i in tqdm(range(0, len(examples), args.batch_size)):
