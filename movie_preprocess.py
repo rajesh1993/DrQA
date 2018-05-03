@@ -87,12 +87,11 @@ def load_data(path):
         sub_idx_end = sub_idx_start + len(span)
         span_dict[q] = (sub_idx_start, sub_idx_end)
 
-
     # Load the output in the below format
     output = {'qids': [], 'questions': [], 'answers': [],
               'contexts': [], 'qid2cid': [], 'correct_index': [], 'span_index':[]}
     for movie in mv_list:
-        if movie in splits_data['train']:
+        if movie in splits_data['val']:
             # output['contexts'].append(mv_dict[movie]['plot'])
             for qa in qa_dict[movie]:
                 if qa['qid'] in span_data:
@@ -185,7 +184,7 @@ def process_dataset(data, tokenizer, workers=None):
             'document': document,
             'offsets': offsets,
             'answers': answer,
-            'candidates': ans_candidate,
+            'candidate': ans_candidate,
             'correct_index': correct_index,
             'qlemma': qlemma,
             'lemma': lemma,
@@ -203,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--split', type=str, help='Filename for train/dev split',
                         default='movieQA')
     parser.add_argument('--workers', type=int, default=None)
-    parser.add_argument('--tokenizer', type=str, default='corenlp')
+    parser.add_argument('--tokenizer', type=str, default='spacy')
     args = parser.parse_args()
 
     t0 = time.time()
@@ -212,7 +211,7 @@ if __name__ == '__main__':
     print('Loading dataset from %s' %args.data_dir , file=sys.stderr)
     dataset = load_data(args.data_dir)
     out_file = os.path.join(
-        args.out_dir, '%s-processed-%s.txt' % (args.split, args.tokenizer)
+        args.out_dir, '%s-dev-processed-%s.txt' % (args.split, args.tokenizer)
     )
     print('Will write to file %s' % out_file, file=sys.stderr)
     with open(out_file, 'w') as f:
