@@ -85,6 +85,7 @@ class Predictor(object):
 
     def predict(self, document, question, candidates=None, top_n=1):
         """Predict a single document - question pair."""
+        # print('Using predict() instead of predict_batch()')
         results = self.predict_batch([(document, question, candidates,)], top_n)
         return results[0]
 
@@ -96,33 +97,46 @@ class Predictor(object):
             questions.append(b[1])
             candidates.append(b[2] if len(b) == 3 else None)
         candidates = candidates if any(candidates) else None
+        candidates_2 = [list() for _ in range(len(candidates[0]))]
+        for i in range(len(batch)):
+            for k in range(len(candidates_2)):
+                candidates_2[k].append(candidates[i][k])
 
         # Tokenize the inputs, perhaps multi-processed.
         if self.workers:
             q_tokens = self.workers.map_async(tokenize, questions)
             d_tokens = self.workers.map_async(tokenize, documents)
-            c_tokens = [self.workers.map_async(tokenize, cand) for cand in candidates]
+            c_tokens = []
+            for k in range(len(candidates_2)):
+                c_tok_k = self.workers.map_async(tokenize, candidates_2[k])
+                c_tokens.append(c_tok_k)
+            # c_tokens = [self.workers.map_async(tokenize, candset) for candset in candidates_2]
             q_tokens = list(q_tokens.get())
             d_tokens = list(d_tokens.get())
-            c_tokens_2 = [list(c_tokens[k].get()) for k in range(len(candidates))]
-            print('Size of q_tokens={}'.format(len(q_tokens)))
-            print('Size of d_tokens={}'.format(len(d_tokens)))
-            print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
+            c_tokens_2 = []
+            for k in range(len(candidates_2)):
+                c_tok_k = list(c_tokens[k].get())
+                c_tokens_2.append(c_tok_k)
+            # c_tokens_2 = [list(c_tokens[k].get()) for k in range(len(candidates))]
+            # print('Workers.')
+            # print('Size of q_tokens={}'.format(len(q_tokens)))
+            # print('Size of d_tokens={}'.format(len(d_tokens)))
+            # print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
         else:
             q_tokens = list(map(self.tokenizer.tokenize, questions))
             d_tokens = list(map(self.tokenizer.tokenize, documents))
-            c_tokens_2 = [list(map(self.tokenizer.tokenize, cand)) for cand in candidates]
-            print('Size of q_tokens={}'.format(len(q_tokens)))
-            print('Size of d_tokens={}'.format(len(d_tokens)))
-            print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
+            c_tokens_2 = [list(map(self.tokenizer.tokenize, cand)) for cand in candidates_2]
+            # print('No workers?')
+            # print('Size of q_tokens={}'.format(len(q_tokens)))
+            # print('Size of d_tokens={}'.format(len(d_tokens)))
+            # print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
+
+        candidates = candidates_2
 
         examples = [list() for _ in range(len(candidates))]
+        # print('Number of questions: {}'.format(len(questions)))
         for i in range(len(questions)):
             for k in range(len(candidates)):
-                print('Size of c_tokens_2[k]')
-                print(len(c_tokens_2[k]))
-                print('Value of i')
-                print(i)
                 examples[k].append({
                     'id': i,
                     'question': q_tokens[i].words(),
@@ -136,13 +150,14 @@ class Predictor(object):
                 })
 
         # Stick document tokens in candidates for decoding
-        if candidates:
-            candidates = [{'input': d_tokens[i], 'cands': candidates[i]}
-                          for i in range(len(candidates))]
+        # if candidates:
+        #     candidates = [{'input': d_tokens[i], 'cands': candidates[i]}
+        #                   for i in range(len(candidates))]
 
         # Build the batch and run it through the model
         pred_s_e_score = [list() for _ in range(len(candidates))]
         for k in range(len(candidates)):
+            # print('Size of examples batch: {}'.format(len(examples[k])))
             batch_exs = batchify([vectorize(e, self.model) for e in examples[k]])
             s, e, score = self.model.predict(batch_exs, candidates, top_n)
             pred_s_e_score[k] = [s, e, score]

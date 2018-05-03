@@ -93,7 +93,7 @@ def vectorize(ex, model, single_answer=False):
     # Candidate Label is 0 or 1 based on what candidate is passed in this qa entry
     # candidate_labels = ex['clabel']
 
-    return document, features, question, start, end, candidate, ex['id']
+    return document, features, question, candidate, start, end, ex['id']
 
 
 def batchify(batch):
@@ -109,7 +109,7 @@ def batchify(batch):
     docs = [ex[0] for ex in batch]
     features = [ex[1] for ex in batch]
     questions = [ex[2] for ex in batch]
-    candidates = [ex[5] for ex in batch]
+    candidates = [ex[3] for ex in batch]
     # c_num = len(candidates[0])
 
     # Batch documents and features (5 copies, but candidate number is first index for x1, not batch_idx)
@@ -172,15 +172,15 @@ def batchify(batch):
     elif len(batch[0]) == NUM_INPUTS + NUM_EXTRA + NUM_TARGETS:
         # ...Otherwise add targets
         if torch.is_tensor(batch[0][3]):
-            y_s = torch.cat([ex[3] for ex in batch])
-            y_e = torch.cat([ex[4] for ex in batch])
+            y_s = torch.cat([ex[4] for ex in batch])
+            y_e = torch.cat([ex[5] for ex in batch])
             # c_l = torch.cat([ex[6] for ex in batch])
             # for u in range(c_num):
             #     c_l_k = torch.cat([ex[6][u] for ex in batch])
             #     c_l.append(c_l_k)
         else:
-            y_s = [ex[3] for ex in batch]
-            y_e = [ex[4] for ex in batch]
+            y_s = [ex[4] for ex in batch]
+            y_e = [ex[5] for ex in batch]
             # c_l = [ex[6] for ex in batch]
             # for u in range(c_num):
             #     c_l_k = [ex[6][u] for ex in batch]
