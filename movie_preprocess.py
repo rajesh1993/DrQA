@@ -73,9 +73,6 @@ def load_data(path):
     # Question to movie dict (reverse)
     reverse_qa_dict = {}
     for qa in qa_data:
-        #if qa['qid'] in reverse_qa_dict:
-        #    reverse_qa_dict[qa['qid']].append(qa)
-        #else:
         reverse_qa_dict[qa['qid']] = qa
 
     # Find location of span in context
@@ -140,14 +137,14 @@ def process_dataset(data, tokenizer, workers=None):
     #ans_candidates = []
     all_candidates = [ans for item in data['answers'] for ans in item]
     workers = make_pool(initargs=(tokenizer_class, {'annotators': {'lemma'}}))
-    ans_candidates = workers.map(tokenize, all_candidates)
-    #for idx in range(len(data['answers'])):
-    #    curr_ans = workers.map(tokenize, data['answers'][idx])
-    #    ans_candidates.append(curr_ans)
+    ans_tokens = workers.map(tokenize, all_candidates)
     workers.close()
     workers.join()
 
+    #Add clemma and calculate the number of candidates for each question and also multiply the question by 5
+
     for idx in range(len(data['qids'])):
+    # for cand_idx in range(5):
         question = q_tokens[idx]['words']
         qlemma = q_tokens[idx]['lemma']
         document = c_tokens[data['qid2cid'][idx]]['words']
@@ -156,10 +153,22 @@ def process_dataset(data, tokenizer, workers=None):
         pos = c_tokens[data['qid2cid'][idx]]['pos']
         ner = c_tokens[data['qid2cid'][idx]]['ner']
         correct_index = data['correct_index'][idx]
-        ans_tokens = []
-        ans_tokens.append(data['span_index'][idx])
+        clabel = []
+        # clemma = []
+        # ans_candidate = []
+        # for cand_idx in range(5):
+        clemma = ans_tokens[idx * 5 + correct_index]['lemma']
+        # if correct_index == cand_idx:
+        #     clabel.append(1)
+        # else:
+        #     clabel.append(0)
+        ans_candidate = ans_tokens[idx * 5 + correct_index]['words']
+        answer = []
+        answer.append(data['span_index'][idx])
+        # ans_candidate = ans_tokens[(idx * 5) : (idx * 5 + 5)]
+        # clemma = [cd['lemma'] for cd in ans_tokens[(idx * 5) : (idx * 5 + 5)]]
 
-        # Include answer candidates, correct answer number and index of the span
+        # Include answer candidates, correct answer number and index of the span, clabel
 
         # ans_tokens = []
         # print(offsets)
@@ -175,11 +184,13 @@ def process_dataset(data, tokenizer, workers=None):
             'question': question,
             'document': document,
             'offsets': offsets,
-            'answers': ans_tokens,
-            'candidates': ans_candidates,
+            'answers': answer,
+            'candidates': ans_candidate,
             'correct_index': correct_index,
             'qlemma': qlemma,
             'lemma': lemma,
+            'clemma': clemma,
+            'clabel': clabel,
             'pos': pos,
             'ner': ner,
         }
