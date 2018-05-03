@@ -154,19 +154,19 @@ def process_dataset(data, tokenizer, workers=None):
         ner = c_tokens[data['qid2cid'][idx]]['ner']
         correct_index = data['correct_index'][idx]
         clabel = []
-        clemma = []
-        ans_candidate = []
-        for cand_idx in range(5):
-            clemma.append(ans_tokens[idx * 5 + cand_idx]['lemma'])
-            if correct_index == cand_idx:
-                clabel.append(1)
-            else:
-                clabel.append(0)
-            ans_candidate.append(ans_tokens[idx * 5 + cand_idx]['words'])
+        # clemma = []
+        # ans_candidate = []
+        # for cand_idx in range(5):
+        clemma = ans_tokens[idx * 5 + correct_index]['lemma']
+        # if correct_index == cand_idx:
+        #     clabel.append(1)
+        # else:
+        #     clabel.append(0)
+        ans_candidate = ans_tokens[idx * 5 + correct_index]['words']
         answer = []
         answer.append(data['span_index'][idx])
         # ans_candidate = ans_tokens[(idx * 5) : (idx * 5 + 5)]
-        clemma = [cd['lemma'] for cd in ans_tokens[(idx * 5) : (idx * 5 + 5)]]
+        # clemma = [cd['lemma'] for cd in ans_tokens[(idx * 5) : (idx * 5 + 5)]]
 
         # Include answer candidates, correct answer number and index of the span, clabel
 
