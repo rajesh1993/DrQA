@@ -104,22 +104,32 @@ class Predictor(object):
             c_tokens = [self.workers.map_async(tokenize, cand) for cand in candidates]
             q_tokens = list(q_tokens.get())
             d_tokens = list(d_tokens.get())
-            c_tokens = [list(c_tokens[k].get()) for k in range(len(candidates))]
+            c_tokens_2 = [list(c_tokens[k].get()) for k in range(len(candidates))]
+            print('Size of q_tokens={}'.format(len(q_tokens)))
+            print('Size of d_tokens={}'.format(len(d_tokens)))
+            print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
         else:
             q_tokens = list(map(self.tokenizer.tokenize, questions))
             d_tokens = list(map(self.tokenizer.tokenize, documents))
-            c_tokens = [list(map(self.tokenizer.tokenize, cand)) for cand in candidates]
+            c_tokens_2 = [list(map(self.tokenizer.tokenize, cand)) for cand in candidates]
+            print('Size of q_tokens={}'.format(len(q_tokens)))
+            print('Size of d_tokens={}'.format(len(d_tokens)))
+            print('Size of c_tokens={}'.format(len(c_tokens_2[0])))
 
         examples = [list() for _ in range(len(candidates))]
         for i in range(len(questions)):
             for k in range(len(candidates)):
+                print('Size of c_tokens_2[k]')
+                print(len(c_tokens_2[k]))
+                print('Value of i')
+                print(i)
                 examples[k].append({
                     'id': i,
                     'question': q_tokens[i].words(),
                     'qlemma': q_tokens[i].lemmas(),
                     'document': d_tokens[i].words(),
-                    'candidate': c_tokens[k][i].words(),
-                    'clemma': c_tokens[k][i].lemmas(),
+                    'candidate': c_tokens_2[k][i].words(),
+                    'clemma': c_tokens_2[k][i].lemmas(),
                     'lemma': d_tokens[i].lemmas(),
                     'pos': d_tokens[i].pos(),
                     'ner': d_tokens[i].entities(),
@@ -157,7 +167,7 @@ class Predictor(object):
             scores_k = [all_results[k][i][0][1] for k in range(len(candidates))]
             max_score = max(scores_k)
             best_k = scores_k.index(max_score)
-            results.append(all_results[best_k][i])
+            results.append((all_results[best_k][i], best_k))
 
         return results
 
