@@ -108,14 +108,20 @@ def load_data(path):
                         output['answers'].append(qa['answers'])
     return output
 
-# def find_answer(offsets, begin_offset, end_offset):
-#     """Match token offsets with the char begin/end offsets of the answer."""
-#     start = [i for i, tok in enumerate(offsets) if tok[0] == begin_offset]
-#     end = [i for i, tok in enumerate(offsets) if tok[1] == end_offset]
-#     assert(len(start) <= 1)
-#     assert(len(end) <= 1)
-#     if len(start) == 1 and len(end) == 1:
-#         return start[0], end[0]
+def find_answer(offsets, begin_offset, end_offset):
+    """Match token offsets with the char begin/end offsets of the answer."""
+    start = [i for i, tok in enumerate(offsets) if tok[0] == begin_offset]
+    end = [i for i, tok in enumerate(offsets) if tok[1] == end_offset]
+    assert(len(start) <= 1)
+    assert(len(end) <= 1)
+    if len(start) == 1 and len(end) == 1:
+        return start[0], end[0]
+    else:
+        print('begin_offset={}, end_offset={}'.format(begin_offset, end_offset))
+        if len(start) == 1:
+            print('start = {}'.format(start))
+        if len(end) == 1:
+            print('end = {}'.format(end))
 
 def process_dataset(data, tokenizer, workers=None):
     """Iterate processing (tokenize, parse, etc) dataset multithreaded."""
@@ -162,8 +168,12 @@ def process_dataset(data, tokenizer, workers=None):
         # else:
         #     clabel.append(0)
         ans_candidate = ans_tokens[idx * 5 + correct_index]['words']
-        answer = []
-        answer.append(data['span_index'][idx])
+        an = find_answer(offsets, data['span_index'][idx][0], data['span_index'][idx][1])
+        answer = [an]
+        if an is None:
+            print('Incorrect answer span at qid: {}'.format(data['qids'][idx]))
+            continue
+        # answer.append(data['span_index'][idx])
         # ans_candidate = ans_tokens[(idx * 5) : (idx * 5 + 5)]
         # clemma = [cd['lemma'] for cd in ans_tokens[(idx * 5) : (idx * 5 + 5)]]
 

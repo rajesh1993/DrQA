@@ -113,9 +113,9 @@ def add_train_args(parser):
 
     # General
     general = parser.add_argument_group('General')
-    general.add_argument('--official-eval', type='bool', default=True,
+    general.add_argument('--official-eval', type='bool', default=False,
                          help='Validate with official SQuAD eval')
-    general.add_argument('--valid-metric', type=str, default='f1',
+    general.add_argument('--valid-metric', type=str, default='exact_match',
                          help='The evaluation metric used for model selection')
     general.add_argument('--display-iter', type=int, default=25,
                          help='Log state after every <display_iter> epochs')
@@ -350,7 +350,7 @@ def eval_accuracies(pred_s, target_s, pred_e, target_e):
 
         # Both start and end match
         if any([1 for _s, _e in zip(target_s[i], target_e[i])
-                if _s == pred_s[i] and _e == pred_e[i]]):
+                if np.int64(_s) == pred_s[i][0] and np.int64(_e) == pred_e[i][0]]):
             em.update(1)
         else:
             em.update(0)

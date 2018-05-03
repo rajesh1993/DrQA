@@ -237,14 +237,14 @@ class DocReader(object):
         # Run forward
         score_s, score_e = self.network(*inputs)
 
-        print('\nscore_s size:')
-        print(score_s)
-        print('\nscore_e size:')
-        print(score_e)
-        print('\ntarget_s size:')
-        print(target_s)
-        print('\ntarget_e size:')
-        print(target_e)
+        # print('\nscore_s size:')
+        # print(score_s)
+        # print('\nscore_e size:')
+        # print(score_e)
+        # print('\ntarget_s size:')
+        # print(target_s)
+        # print('\ntarget_e size:')
+        # print(target_e)
 
         # Compute loss and accuracies
         loss = F.nll_loss(score_s, target_s) + F.nll_loss(score_e, target_e)

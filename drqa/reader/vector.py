@@ -150,13 +150,13 @@ def batchify(batch):
         x2_mask[i, :q.size(0)].fill_(0)
 
     # Batch candidates (5 copies, and candidate number is first index, not batch_idx)
+    max_length = max([c.size(0) for c in candidates])
     x3 = torch.LongTensor(len(candidates), max_length).zero_()
     x3_mask = torch.ByteTensor(len(candidates), max_length).fill_(1)
     for i, c in enumerate(candidates):
         x3[i, :c.size(0)].copy_(c)
         x3_mask[i, :c.size(0)].fill_(0)
     # for k in range(c_num):
-    #     max_length = max([c[k].size(0) for c in candidates])
     #     x3_k = torch.LongTensor(len(candidates), max_length).zero_()
     #     x3_mask_k = torch.ByteTensor(len(candidates), max_length).fill_(1)
     #     for i, c in enumerate(candidates):
