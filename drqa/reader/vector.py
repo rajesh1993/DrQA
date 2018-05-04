@@ -171,7 +171,7 @@ def batchify(batch):
 
     elif len(batch[0]) == NUM_INPUTS + NUM_EXTRA + NUM_TARGETS:
         # ...Otherwise add targets
-        if torch.is_tensor(batch[0][3]):
+        if torch.is_tensor(batch[0][4]):
             y_s = torch.cat([ex[4] for ex in batch])
             y_e = torch.cat([ex[5] for ex in batch])
             # c_l = torch.cat([ex[6] for ex in batch])
