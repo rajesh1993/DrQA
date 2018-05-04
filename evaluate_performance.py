@@ -17,7 +17,7 @@ if args.only_train and args.only_val:
     args.only_train = False
     args.only_val = False
 
-filenames = [args.preds+'-0.preds', args.preds+'-3200.preds', args.preds+'-6400.preds', args.preds+'-9600.preds']
+filenames = [args.preds+'.preds']#, args.preds+'-3200.preds', args.preds+'-6400.preds', args.preds+'-9600.preds']
 
 correct = 0
 total = 0
